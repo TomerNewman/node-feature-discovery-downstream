@@ -634,7 +634,6 @@ func (m *nfdMaster) nfdAPIUpdateAllNodes() error {
 	for _, node := range nodes.Items {
 		m.updaterPool.addNode(node.Name)
 	}
-
 	return nil
 }
 
@@ -743,6 +742,7 @@ func (m *nfdMaster) nfdAPIUpdateOneNode(cli k8sclient.Interface, node *corev1.No
 	if err := m.refreshNodeFeatures(cli, node, nodeFeatures.Spec.Labels, &nodeFeatures.Spec.Features); err != nil {
 		return err
 	}
+	klog.InfoS("finish nfdAPIUpdateOneNode")
 
 	return nil
 }
@@ -878,7 +878,7 @@ func (m *nfdMaster) refreshNodeFeatures(cli k8sclient.Interface, node *corev1.No
 	} else if labels == nil {
 		labels = make(map[string]string)
 	}
-
+	klog.InfoS("processNodeFeatureRule")
 	crLabels, crAnnotations, crExtendedResources, crTaints := m.processNodeFeatureRule(node.Name, features)
 
 	// Labels
@@ -991,27 +991,31 @@ func (m *nfdMaster) setTaints(cli k8sclient.Interface, taints []corev1.Taint, no
 }
 
 func (m *nfdMaster) processNodeFeatureRule(nodeName string, features *nfdv1alpha1.Features) (Labels, Annotations, ExtendedResources, []corev1.Taint) {
+	klog.InfoS("processNodeFeatureRule")
+
 	if m.nfdController == nil {
 		return nil, nil, nil, nil
 	}
-
 	extendedResources := ExtendedResources{}
 	labels := make(map[string]string)
 	annotations := make(map[string]string)
 	var taints []corev1.Taint
 	ruleSpecs, err := m.nfdController.ruleLister.List(k8sLabels.Everything())
+	klog.InfoS(fmt.Sprintf("ruleSpecs - %v", ruleSpecs))
 	sort.Slice(ruleSpecs, func(i, j int) bool {
 		return ruleSpecs[i].Name < ruleSpecs[j].Name
 	})
-
+	klog.InfoS("passed sort.Slice")
 	if err != nil {
 		klog.ErrorS(err, "failed to list NodeFeatureRule resources")
 		return nil, nil, nil, nil
 	}
 
 	// Process all rule CRs
+	klog.InfoS("before loop")
 	processStart := time.Now()
 	for _, spec := range ruleSpecs {
+		klog.InfoS(fmt.Sprintf("spec - %v", spec))
 		t := time.Now()
 		switch {
 		case klog.V(3).Enabled():
